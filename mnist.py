@@ -3,34 +3,42 @@
 import tensorflow
 from tensorflow.examples.tutorials.mnist import input_data
 
-mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
+# Load the MNIST data set
+mnist_data = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
+# The basic MLP graph
 x = tensorflow.placeholder(tensorflow.float32, shape=[None, 784])
-
 W = tensorflow.Variable(tensorflow.zeros([784, 10]))
 b = tensorflow.Variable(tensorflow.zeros([10]))
-
 y = tensorflow.nn.softmax(tensorflow.matmul(x, W) + b)
 
-y_ = tensorflow.placeholder(tensorflow.float32, [None, 10])
+# The placeholder for the correct result
+real_y = tensorflow.placeholder(tensorflow.float32, [None, 10])
 
-cross_entropy = tensorflow.reduce_mean(-tensorflow.reduce_sum(y_ * tensorflow.log(y), reduction_indices=[1]))
+# Loss function
+cross_entropy = tensorflow.reduce_mean(-tensorflow.reduce_sum(
+    real_y * tensorflow.log(y), axis=[1])
+)
 
-train_step = tensorflow.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
+# Optimization
+optimizer = tensorflow.train.GradientDescentOptimizer(0.5)
+train_step = optimizer.minimize(cross_entropy)
 
-session = tensorflow.InteractiveSession()
+# Initialization
+init = tensorflow.global_variables_initializer()
 
-tensorflow.global_variables_initializer().run()
+epochs = 1000
+with tensorflow.Session() as session:
+    session.run(init)
 
-for _ in range(1000):
-    batch_xs, batch_ys = mnist.train.next_batch(100)
+    for _ in range(epochs):
+        batch_x, batch_y = mnist_data.train.next_batch(100)
 
-    session.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
+        session.run(train_step, feed_dict={x: batch_x, real_y: batch_y})
 
-correct_prediction = tensorflow.equal(tensorflow.argmax(y, 1), tensorflow.argmax(y_, 1))
-accuracy = tensorflow.reduce_mean(tensorflow.cast(correct_prediction, tensorflow.float32))
+    correct_prediction = tensorflow.equal(tensorflow.argmax(y, 1), tensorflow.argmax(real_y, 1))
+    accuracy = tensorflow.reduce_mean(tensorflow.cast(correct_prediction, tensorflow.float32))
 
-print(session.run(accuracy, feed_dict={x: mnist.test.images, y_: mnist.test.labels}))
-prediction = tensorflow.argmax(y, 1)
+    network_accuracy = session.run(accuracy, feed_dict={x: mnist_data.test.images, real_y: mnist_data.test.labels})
 
-print(session.run(prediction, feed_dict={x: mnist.test.images[:1]}))
+    print('The accuracy over the MNIST data is {:.2f}%'.format(network_accuracy * 100))
